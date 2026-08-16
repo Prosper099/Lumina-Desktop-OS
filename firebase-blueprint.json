@@ -1,0 +1,31 @@
+{
+  "entities": {
+    "UserState": {
+      "title": "UserState",
+      "description": "The saved virtual files and settings state for a signed-in desktop OS user.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Owner user ID" },
+        "theme": { "type": "string", "enum": ["light", "dark", "glass"] },
+        "accentColor": { "type": "string" },
+        "wallpaper": { "type": "string" },
+        "fileSystem": {
+          "type": "array",
+          "description": "Serialized list of file system nodes"
+        },
+        "chatHistory": {
+          "type": "array",
+          "description": "Recent AI Copilot chat messages"
+        },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "fileSystem", "theme"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserState",
+      "description": "User profile state and persistent virtual machine storage"
+    }
+  }
+}
