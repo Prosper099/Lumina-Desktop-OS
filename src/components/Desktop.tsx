@@ -11,7 +11,6 @@ import { SettingsApp } from './apps/SettingsApp';
 import { TerminalApp } from './apps/TerminalApp';
 import { FileExplorer } from './apps/FileExplorer';
 import { CopilotApp } from './apps/CopilotApp';
-import { GravityLabApp } from './apps/GravityLabApp';
 import { VoiceApp } from './apps/VoiceApp';
 import { SystemMonitor } from './apps/SystemMonitor';
 import { MapsApp } from './apps/MapsApp';
@@ -373,6 +372,7 @@ export const Desktop: React.FC = () => {
     setSearchQuery,
     activeWindowId,
     minimizeWindow,
+    snapPreview,
     fileSystem,
     chatHistory,
     sendAICommand,
@@ -724,42 +724,42 @@ export const Desktop: React.FC = () => {
       )}
 
       {/* 1. TOP STATS BAR (PRECISELY LUMINA.OS STYLING) */}
-      <nav className="w-full h-14 bg-slate-950/80 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-6 select-none z-[9900] shadow-2xl relative">
+      <nav className="w-full h-12 sm:h-14 bg-slate-950/80 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-3 sm:px-6 select-none z-[9900] shadow-2xl relative">
         {/* Left Dropdown trigger container */}
         <div className="flex items-center gap-2 relative">
           <button
             onClick={() => setIsNebulaDropdownOpen(!isNebulaDropdownOpen)}
-            className="flex items-center gap-3.5 text-slate-100 hover:text-sky-300 font-bold font-sans text-xs tracking-widest uppercase transition bg-slate-900/60 hover:bg-slate-800/80 px-4 py-2.5 rounded-full border border-white/10 cursor-pointer"
+            className="flex items-center gap-2 sm:gap-3.5 text-slate-100 hover:text-sky-300 font-bold font-sans text-xs tracking-widest uppercase transition bg-slate-900/60 hover:bg-slate-800/80 px-2.5 sm:px-4 py-1.5 sm:py-2.5 rounded-full border border-white/10 cursor-pointer"
           >
-            <div className="grid grid-cols-2 gap-1">
-              <div className="w-2 h-2 rounded-full bg-[#1f83fa]" />
-              <div className="w-2 h-2 rounded-full bg-[#02bbf9]" />
-              <div className="w-2 h-2 rounded-full bg-[#5e5eff]" />
-              <div className="w-2 h-2 rounded-full bg-[#858ffc]" />
+            <div className="grid grid-cols-2 gap-0.5 sm:gap-1">
+              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#1f83fa]" />
+              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#02bbf9]" />
+              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#5e5eff]" />
+              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#858ffc]" />
             </div>
-            <span className="text-[12px] font-extrabold tracking-widest text-white">LUMINA.OS</span>
+            <span className="text-[11px] sm:text-[12px] font-extrabold tracking-widest text-white">LUMINA.OS</span>
             <Icons.ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isNebulaDropdownOpen ? 'rotate-180 text-sky-400' : ''}`} />
           </button>
         </div>
 
         {/* Right side system workspace label and interactive notification center */}
-        <div className="flex items-center gap-4 relative">
+        <div className="flex items-center gap-2 sm:gap-4 relative">
           <button
             onClick={() => setIsNotificationsDropdownOpen(!isNotificationsDropdownOpen)}
-            className="flex items-center gap-2 hover:text-sky-300 text-slate-300 font-bold font-sans text-xs tracking-wider transition bg-slate-900/60 hover:bg-slate-800/85 px-3.5 py-2 rounded-full border border-white/10 cursor-pointer relative"
+            className="flex items-center gap-1.5 sm:gap-2 hover:text-sky-300 text-slate-300 font-bold font-sans text-xs tracking-wider transition bg-slate-900/60 hover:bg-slate-800/85 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-full border border-white/10 cursor-pointer relative"
           >
             <Icons.Bell className={`w-3.5 h-3.5 ${notifications.length > 0 ? 'text-amber-400' : 'text-slate-400'}`} />
-            <span className="text-[10px] font-bold font-mono tracking-wide uppercase">
-              {notifications.length > 0 ? `${notifications.length} NEW` : 'NOTIFICATIONS'}
+            <span className="text-[9px] sm:text-[10px] font-bold font-mono tracking-wide uppercase">
+              {notifications.length > 0 ? `${notifications.length} NEW` : 'ALERTS'}
             </span>
             {notificationHistory.length > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 w-4.5 h-4.5 bg-blue-600 outline outline-2 outline-slate-950 text-white rounded-full text-[9px] font-extrabold flex items-center justify-center font-mono">
+              <span className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 w-4 h-4 sm:w-4.5 sm:h-4.5 bg-blue-600 outline outline-2 outline-slate-950 text-white rounded-full text-[8.5px] sm:text-[9px] font-extrabold flex items-center justify-center font-mono">
                 {notificationHistory.length}
               </span>
             )}
           </button>
 
-          <div className="text-[10px] font-bold text-slate-500 font-mono tracking-widest uppercase hidden sm:block">
+          <div className="text-[10px] font-bold text-slate-500 font-mono tracking-widest uppercase hidden md:block">
             WORKSPACE ACTIVE
           </div>
         </div>
@@ -1120,7 +1120,7 @@ export const Desktop: React.FC = () => {
 
       {/* 4. MAIN DESKTOP WORKING GRID STAGE (LEFT LAUNCH SHORTCUTS VERTICALLY ARRANGED) */}
       <div
-        className="flex-1 relative p-6 pointer-events-auto select-none"
+        className="flex-1 relative p-3 sm:p-6 pointer-events-auto select-none overflow-hidden"
         onClick={() => {
           setSelectedIconId(null);
           setIsStartMenuOpen(false);
@@ -1131,13 +1131,13 @@ export const Desktop: React.FC = () => {
           setIsCalendarOpen(false);
         }}
       >
-        {/* Left Side Large Glowing Launch Icons (Generous, crisp and comfortable OS layout) */}
+        {/* Left Side Large Glowing Launch Icons (Responsive grid on mobile, 2 columns on tablet/desktop) */}
         <div 
-          className="absolute left-6 top-8 flex flex-row gap-6 select-none touch-none"
+          className="absolute left-3 sm:left-6 top-3 sm:top-8 flex flex-row flex-wrap sm:flex-nowrap gap-3 sm:gap-6 select-none max-w-[calc(100vw-24px)] sm:max-w-none max-h-[calc(100vh-140px)] overflow-y-auto sm:overflow-visible pb-16 sm:pb-0 scrollbar-none"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Column 1: Core OS utilities */}
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-row sm:flex-col flex-wrap sm:flex-nowrap gap-2.5 sm:gap-4">
             {[
               { id: 'explorer', label: 'File Explorer', appId: 'explorer', shadowGlow: 'hover:shadow-[0_0_16px_rgba(245,158,11,0.3)] hover:border-amber-500/35' },
               { id: 'notepad', label: 'Notepad', appId: 'notepad', shadowGlow: 'hover:shadow-[0_0_16px_rgba(16,185,129,0.3)] hover:border-emerald-500/35' },
@@ -1154,22 +1154,22 @@ export const Desktop: React.FC = () => {
                     setSelectedIconId(shortcut.id);
                     handleLaunchIcon(shortcut.appId);
                   }}
-                  className="flex flex-col items-center select-none cursor-pointer group w-20 transition duration-150 active:scale-95"
+                  className="flex flex-col items-center select-none cursor-pointer group w-16 sm:w-20 transition duration-150 active:scale-95"
                 >
                   {/* Modern Rounded Translucent Icon Squircle Wrapper */}
                   <div
-                    className={`w-14 h-14 flex items-center justify-center rounded-2xl border transition duration-150 select-none relative ${
+                    className={`w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-2xl border transition duration-150 select-none relative ${
                       isSelected 
                         ? 'bg-[#18171f]/95 border-blue-500/80 shadow-[0_0_16px_rgba(59,130,246,0.4)] scale-95' 
                         : 'bg-[#131217]/90 backdrop-blur-xl border-white/10 hover:bg-[#1c1a24]/90 hover:border-white/20 group-hover:scale-105 shadow-lg'
                     } ${shortcut.shadowGlow}`}
                   >
                     <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-white/0 to-white/10 opacity-0 group-hover:opacity-100 transition duration-150 pointer-events-none"></div>
-                    {renderCustomAppIcon(shortcut.appId, "w-8 h-8")}
+                    {renderCustomAppIcon(shortcut.appId, "w-6.5 h-6.5 sm:w-8 sm:h-8")}
                   </div>
                   
                   {/* Text Label Underneath */}
-                  <span className="text-[11px] font-medium text-slate-100 group-hover:text-white select-none mt-1.5 text-center w-full truncate leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]">
+                  <span className="text-[10px] sm:text-[11px] font-medium text-slate-100 group-hover:text-white select-none mt-1 sm:mt-1.5 text-center w-full truncate leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]">
                     {shortcut.label}
                   </span>
                 </div>
@@ -1178,7 +1178,7 @@ export const Desktop: React.FC = () => {
           </div>
 
           {/* Column 2: Intelligence & System Utilities */}
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-row sm:flex-col flex-wrap sm:flex-nowrap gap-2.5 sm:gap-4">
             {[
               { id: 'calc', label: 'Calculator', appId: 'calc', shadowGlow: 'hover:shadow-[0_0_16px_rgba(129,140,248,0.3)] hover:border-indigo-500/35' },
               { id: 'voice', label: 'Gemini Live', appId: 'voice', shadowGlow: 'hover:shadow-[0_0_16px_rgba(168,85,247,0.3)] hover:border-purple-500/35' },
@@ -1195,22 +1195,22 @@ export const Desktop: React.FC = () => {
                     setSelectedIconId(shortcut.id);
                     handleLaunchIcon(shortcut.appId);
                   }}
-                  className="flex flex-col items-center select-none cursor-pointer group w-20 transition duration-150 active:scale-95"
+                  className="flex flex-col items-center select-none cursor-pointer group w-16 sm:w-20 transition duration-150 active:scale-95"
                 >
                   {/* Modern Rounded Translucent Icon Squircle Wrapper */}
                   <div
-                    className={`w-14 h-14 flex items-center justify-center rounded-2xl border transition duration-150 select-none relative ${
+                    className={`w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-2xl border transition duration-150 select-none relative ${
                       isSelected 
                         ? 'bg-[#18171f]/95 border-blue-500/80 shadow-[0_0_16px_rgba(59,130,246,0.4)] scale-95' 
                         : 'bg-[#131217]/90 backdrop-blur-xl border-white/10 hover:bg-[#1c1a24]/90 hover:border-white/20 group-hover:scale-105 shadow-lg'
                     } ${shortcut.shadowGlow}`}
                   >
                     <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-white/0 to-white/10 opacity-0 group-hover:opacity-100 transition duration-150 pointer-events-none"></div>
-                    {renderCustomAppIcon(shortcut.appId, "w-8 h-8")}
+                    {renderCustomAppIcon(shortcut.appId, "w-6.5 h-6.5 sm:w-8 sm:h-8")}
                   </div>
                   
                   {/* Text Label Underneath */}
-                  <span className="text-[11px] font-medium text-slate-100 group-hover:text-white select-none mt-1.5 text-center w-full truncate leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]">
+                  <span className="text-[10px] sm:text-[11px] font-medium text-slate-100 group-hover:text-white select-none mt-1 sm:mt-1.5 text-center w-full truncate leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]">
                     {shortcut.label}
                   </span>
                 </div>
@@ -1235,6 +1235,34 @@ export const Desktop: React.FC = () => {
             {win.appId === 'maps' && <MapsApp />}
           </WindowFrame>
         ))}
+
+        {/* Window Snap Ghost Preview Overlay */}
+        <AnimatePresence>
+          {snapPreview && snapPreview.active && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              style={{
+                position: 'absolute',
+                left: snapPreview.x,
+                top: snapPreview.y,
+                width: snapPreview.width,
+                height: snapPreview.height,
+                zIndex: 8000,
+                pointerEvents: 'none'
+              }}
+              className="rounded-2xl border-2 border-blue-400/80 bg-blue-500/15 backdrop-blur-md shadow-[0_0_35px_rgba(59,130,246,0.35)] flex items-center justify-center overflow-hidden pointer-events-none"
+            >
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/80 border border-white/20 text-white shadow-2xl backdrop-blur-md text-xs font-semibold select-none">
+                {snapPreview.snapType === 'left' && <span>◧ Release to Snap Left (50%)</span>}
+                {snapPreview.snapType === 'right' && <span>◨ Release to Snap Right (50%)</span>}
+                {snapPreview.snapType === 'top' && <span>🗖 Release to Maximize Window</span>}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Slideout system Copilot Sidebar */}
@@ -1245,7 +1273,7 @@ export const Desktop: React.FC = () => {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'tween', duration: 0.3 }}
-            className="absolute top-14 right-0 bottom-0 w-96 bg-slate-950/95 backdrop-blur-xl border-l border-white/5 shadow-2xl z-[9000] overflow-hidden"
+            className="absolute top-0 sm:top-14 right-0 bottom-0 w-full sm:w-96 bg-slate-950/95 backdrop-blur-xl border-l border-white/5 shadow-2xl z-[9000] overflow-hidden"
           >
             <div className="h-full flex flex-col justify-between">
               <CopilotApp onClose={() => setIsCopilotSidebarOpen(false)} />
@@ -1262,7 +1290,7 @@ export const Desktop: React.FC = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.97 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
-            className="absolute bottom-22 left-1/2 -translate-x-1/2 w-[440px] max-w-[92vw] rounded-2xl bg-slate-950/95 border border-white/10 shadow-2xl shadow-black/80 z-[9000] p-5 backdrop-blur-3xl text-slate-200 flex flex-col gap-4.5 overflow-hidden"
+            className="absolute bottom-16 sm:bottom-22 left-1/2 -translate-x-1/2 w-[calc(100vw-24px)] sm:w-[440px] max-w-[92vw] max-h-[80vh] overflow-y-auto rounded-2xl bg-slate-950/95 border border-white/10 shadow-2xl shadow-black/80 z-[9000] p-4 sm:p-5 backdrop-blur-3xl text-slate-200 flex flex-col gap-3.5 sm:gap-4.5 scrollbar-none"
           >
             {/* Gloss Decoration and Header */}
             <div className="absolute top-0 right-0 w-36 h-36 bg-blue-500/10 blur-[45px] pointer-events-none"></div>
@@ -1290,7 +1318,7 @@ export const Desktop: React.FC = () => {
                   No matching apps found.
                 </div>
               ) : (
-                <div className="grid grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 sm:gap-2.5">
                   {startAppsFiltered.map(item => (
                     <button
                       key={item.id}
@@ -1298,12 +1326,12 @@ export const Desktop: React.FC = () => {
                         handleLaunchIcon(item.appId);
                         setIsStartMenuOpen(false);
                       }}
-                      className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl bg-slate-900/30 border border-white/5 hover:bg-slate-900/70 hover:border-white/15 transition text-center cursor-pointer select-none group"
+                      className="flex flex-col items-center gap-1.5 p-2 sm:p-2.5 rounded-xl bg-slate-900/30 border border-white/5 hover:bg-slate-900/70 hover:border-white/15 transition text-center cursor-pointer select-none group"
                     >
-                      <div className="w-11 h-11 flex items-center justify-center rounded-xl bg-slate-950/70 border border-white/10 transition duration-150 relative group-hover:scale-105">
-                        {renderCustomAppIcon(item.appId, "w-6.5 h-6.5")}
+                      <div className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center rounded-xl bg-slate-950/70 border border-white/10 transition duration-150 relative group-hover:scale-105">
+                        {renderCustomAppIcon(item.appId, "w-6 h-6 sm:w-6.5 sm:h-6.5")}
                       </div>
-                      <span className="text-[10.5px] font-medium text-slate-200 group-hover:text-white select-none text-center w-full truncate leading-tight">
+                      <span className="text-[10px] sm:text-[10.5px] font-medium text-slate-200 group-hover:text-white select-none text-center w-full truncate leading-tight">
                         {item.label}
                       </span>
                     </button>
@@ -1418,16 +1446,16 @@ export const Desktop: React.FC = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className={`absolute bottom-22 right-6 w-[345px] rounded-3xl p-5 shadow-2xl z-[9000] border flex flex-col gap-4 select-none ${
+            className={`absolute bottom-16 sm:bottom-22 right-3 sm:right-6 w-[calc(100vw-24px)] sm:w-[345px] max-w-[92vw] max-h-[80vh] overflow-y-auto rounded-3xl p-4 sm:p-5 shadow-2xl z-[9000] border flex flex-col gap-3.5 sm:gap-4 select-none scrollbar-none ${
               isLightTheme 
                 ? 'acrylic-light text-slate-950 border-slate-300 shadow-slate-950/20' 
                 : 'acrylic text-white border-white/10 shadow-black/70'
             }`}
           >
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
               <button
                 onClick={() => setWifiOn(!wifiOn)}
-                className={`flex flex-col items-center justify-center p-3.5 rounded-xl cursor-pointer transition select-none ${
+                className={`flex flex-col items-center justify-center p-3 sm:p-3.5 rounded-xl cursor-pointer transition select-none ${
                   wifiOn 
                     ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,0.3)]' 
                     : isLightTheme 
@@ -1440,7 +1468,7 @@ export const Desktop: React.FC = () => {
               </button>
               <button
                 onClick={() => setBluetoothOn(!bluetoothOn)}
-                className={`flex flex-col items-center justify-center p-3.5 rounded-xl cursor-pointer transition select-none ${
+                className={`flex flex-col items-center justify-center p-3 sm:p-3.5 rounded-xl cursor-pointer transition select-none ${
                   bluetoothOn 
                     ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,0.3)]' 
                     : isLightTheme 
@@ -1453,7 +1481,7 @@ export const Desktop: React.FC = () => {
               </button>
               <button
                 onClick={() => setAirplaneOn(!airplaneOn)}
-                className={`flex flex-col items-center justify-center p-3.5 rounded-xl cursor-pointer transition select-none ${
+                className={`flex flex-col items-center justify-center p-3 sm:p-3.5 rounded-xl cursor-pointer transition select-none ${
                   airplaneOn 
                     ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,0.3)]' 
                     : isLightTheme 
@@ -1515,7 +1543,7 @@ export const Desktop: React.FC = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className={`absolute bottom-22 left-1/2 translate-x-[90px] -translate-x-1/2 w-[315px] rounded-2xl p-4 shadow-2xl z-[9000] border flex flex-col gap-3 select-none ${
+            className={`absolute bottom-16 sm:bottom-22 left-1/2 -translate-x-1/2 sm:translate-x-[90px] w-[calc(100vw-24px)] sm:w-[315px] max-w-[92vw] max-h-[80vh] overflow-y-auto rounded-2xl p-4 shadow-2xl z-[9000] border flex flex-col gap-3 select-none scrollbar-none ${
               isLightTheme 
                 ? 'acrylic-light text-slate-950 border-slate-300 shadow-slate-950/20' 
                 : 'acrylic text-white border-white/10 shadow-black/70'
@@ -1733,7 +1761,7 @@ export const Desktop: React.FC = () => {
 
       {/* 5. FLOATING GLASSY BOTTOM DOCK (PRECISELY LIKE SCREENSHOT) */}
       <div 
-        className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[9000] flex flex-col items-center gap-1 select-none pointer-events-auto"
+        className="absolute bottom-2 sm:bottom-6 left-1/2 -translate-x-1/2 z-[9000] flex flex-col items-center gap-1 select-none pointer-events-auto max-w-[calc(100vw-12px)] sm:max-w-none"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Toggle chevron when minimized */}
@@ -1755,7 +1783,7 @@ export const Desktop: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 15 }}
               transition={{ duration: 0.2 }}
-              className={`px-4 py-2 border rounded-full backdrop-blur-3xl flex items-center gap-3 w-auto shadow-2xl relative ${
+              className={`px-2 sm:px-4 py-1.5 sm:py-2 border rounded-full backdrop-blur-3xl flex items-center gap-1.5 sm:gap-3 w-auto max-w-[calc(100vw-16px)] overflow-x-auto scrollbar-none shadow-2xl relative ${
                 isLightTheme 
                   ? 'bg-slate-100/95 border-slate-300 shadow-slate-400/20' 
                   : 'bg-slate-950/80 border-white/15 shadow-black/60'
@@ -1768,22 +1796,22 @@ export const Desktop: React.FC = () => {
                   setIsQuickSettingsOpen(false);
                   setIsSearchOpen(false);
                 }}
-                className={`w-10 h-10 flex items-center justify-center rounded-2xl transition transform active:scale-95 cursor-pointer select-none border border-transparent ${
+                className={`w-8 h-8 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center rounded-xl sm:rounded-2xl transition transform active:scale-95 cursor-pointer select-none border border-transparent ${
                   isStartMenuOpen 
                     ? 'bg-white/15 border-white/10 shadow-inner' 
                     : 'hover:bg-white/10 text-sky-400'
                 }`}
                 title="Start Menu"
               >
-                <div className="grid grid-cols-2 gap-[3.5px] p-1 pointer-events-none">
-                  <div className="rounded-[3px] bg-[#1f83fa] shadow-[0_0_6px_rgba(31,131,250,0.6)]" style={{ width: '9.5px', height: '9.5px' }} />
-                  <div className="rounded-[3px] bg-[#02bbf9] shadow-[0_0_6px_rgba(2,187,249,0.6)]" style={{ width: '9.5px', height: '9.5px' }} />
-                  <div className="rounded-[3px] bg-[#5e5eff] shadow-[0_0_6px_rgba(94,94,255,0.6)]" style={{ width: '9.5px', height: '9.5px' }} />
-                  <div className="rounded-[3px] bg-[#858ffc] shadow-[0_0_6px_rgba(133,143,252,0.6)]" style={{ width: '9.5px', height: '9.5px' }} />
+                <div className="grid grid-cols-2 gap-[2.5px] sm:gap-[3.5px] p-0.5 sm:p-1 pointer-events-none">
+                  <div className="rounded-[2px] sm:rounded-[3px] bg-[#1f83fa] shadow-[0_0_6px_rgba(31,131,250,0.6)] w-2 h-2 sm:w-[9.5px] sm:h-[9.5px]" />
+                  <div className="rounded-[2px] sm:rounded-[3px] bg-[#02bbf9] shadow-[0_0_6px_rgba(2,187,249,0.6)] w-2 h-2 sm:w-[9.5px] sm:h-[9.5px]" />
+                  <div className="rounded-[2px] sm:rounded-[3px] bg-[#5e5eff] shadow-[0_0_6px_rgba(94,94,255,0.6)] w-2 h-2 sm:w-[9.5px] sm:h-[9.5px]" />
+                  <div className="rounded-[2px] sm:rounded-[3px] bg-[#858ffc] shadow-[0_0_6px_rgba(133,143,252,0.6)] w-2 h-2 sm:w-[9.5px] sm:h-[9.5px]" />
                 </div>
               </button>
 
-              <div className={`h-6 w-px select-none ${isLightTheme ? 'bg-slate-300' : 'bg-white/10'}`} />
+              <div className={`h-5 sm:h-6 w-px shrink-0 select-none ${isLightTheme ? 'bg-slate-300' : 'bg-white/10'}`} />
 
               {/* Pin shortcut application links with glow highlights */}
               {[
@@ -1801,14 +1829,14 @@ export const Desktop: React.FC = () => {
                   <button
                     key={launcher.id}
                     onClick={() => handleLaunchIcon(launcher.appId)}
-                    className={`w-10 h-10 flex flex-col items-center justify-center rounded-2xl relative cursor-pointer select-none transition ${
+                    className={`w-8 h-8 sm:w-10 sm:h-10 shrink-0 flex flex-col items-center justify-center rounded-xl sm:rounded-2xl relative cursor-pointer select-none transition ${
                       isActive 
                         ? isLightTheme ? 'bg-slate-300 text-slate-900 font-bold shadow-sm' : 'bg-white/15 text-white shadow-inner' 
                         : isLightTheme ? 'hover:bg-slate-200/70 text-slate-750' : 'hover:bg-white/10 text-slate-300'
                     }`}
                     title={launcher.label}
                   >
-                    {renderCustomAppIcon(launcher.appId, "w-6.5 h-6.5")}
+                    {renderCustomAppIcon(launcher.appId, "w-5 h-5 sm:w-6.5 sm:h-6.5")}
                     
                     {/* Active/Minimized status dot on the bottom */}
                     {isOpen && (
@@ -1822,17 +1850,17 @@ export const Desktop: React.FC = () => {
                 );
               })}
 
-              <div className={`h-6 w-px select-none ${isLightTheme ? 'bg-slate-300' : 'bg-white/10'}`} />
+              <div className={`h-5 sm:h-6 w-px shrink-0 select-none ${isLightTheme ? 'bg-slate-300' : 'bg-white/10'}`} />
 
               {/* Chevron inline minimize caret */}
               <button
                 onClick={() => setIsDockExpanded(false)}
-                className={`flex items-center justify-center w-8 h-8 rounded-xl cursor-pointer transition ${
+                className={`flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 shrink-0 rounded-lg sm:rounded-xl cursor-pointer transition ${
                   isLightTheme ? 'hover:bg-slate-200 text-slate-600' : 'hover:bg-white/10 text-slate-400 hover:text-white'
                 }`}
                 title="Hide Dock"
               >
-                <Icons.ChevronDown className="w-4 h-4" />
+                <Icons.ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
 
               {/* Pill with WiFi and Video camera icons */}
@@ -1842,7 +1870,7 @@ export const Desktop: React.FC = () => {
                   setIsStartMenuOpen(false);
                   setIsCalendarOpen(false);
                 }}
-                className={`flex items-center gap-2 px-3 h-10 rounded-2xl cursor-pointer select-none transition border border-transparent ${
+                className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 h-8 sm:h-10 shrink-0 rounded-xl sm:rounded-2xl cursor-pointer select-none transition border border-transparent ${
                   isQuickSettingsOpen 
                     ? 'bg-white/20 border-white/10' 
                     : isLightTheme 
@@ -1851,8 +1879,8 @@ export const Desktop: React.FC = () => {
                 }`}
                 title="Quick Control Sliders"
               >
-                <Icons.Wifi className="w-4 h-4" />
-                <Icons.Video className="w-4 h-4" />
+                <Icons.Wifi className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <Icons.Video className="w-3.5 h-3.5 sm:w-4 sm:h-4 hidden sm:block" />
               </button>
 
               {/* Pill with Bell icon */}
@@ -1860,7 +1888,7 @@ export const Desktop: React.FC = () => {
                 onClick={() => {
                   addNotification("Quick Diagnostic", "All system resources operating within normal parameters.", "info");
                 }}
-                className={`flex items-center justify-center w-10 h-10 rounded-2xl cursor-pointer select-none transition ${
+                className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 shrink-0 rounded-xl sm:rounded-2xl cursor-pointer select-none transition hidden sm:flex ${
                   isLightTheme 
                     ? 'bg-slate-200/70 hover:bg-slate-250 text-slate-800' 
                     : 'bg-white/5 hover:bg-white/10 text-slate-300'
@@ -1880,7 +1908,7 @@ export const Desktop: React.FC = () => {
                   setIsQuickSettingsOpen(false);
                   setIsSearchOpen(false);
                 }}
-                className={`text-center flex flex-col justify-center select-none px-4 h-10 rounded-2xl transition-all duration-150 cursor-pointer ${
+                className={`text-center flex flex-col justify-center shrink-0 select-none px-2.5 sm:px-4 h-8 sm:h-10 rounded-xl sm:rounded-2xl transition-all duration-150 cursor-pointer ${
                   isCalendarOpen 
                     ? 'bg-white/15 border border-white/10 shadow-inner' 
                     : isLightTheme 
@@ -1889,10 +1917,10 @@ export const Desktop: React.FC = () => {
                 }`}
                 title="System Calendar"
               >
-                <div className={`font-bold text-xs tracking-wider leading-none ${isLightTheme ? 'text-slate-900' : 'text-slate-100'}`}>
+                <div className={`font-bold text-[10px] sm:text-xs tracking-wider leading-none ${isLightTheme ? 'text-slate-900' : 'text-slate-100'}`}>
                   {timeStr}
                 </div>
-                <div className="text-[8.5px] uppercase tracking-widest text-slate-400 block mt-0.5 font-sans">
+                <div className="text-[7.5px] sm:text-[8.5px] uppercase tracking-widest text-slate-400 block mt-0.5 font-sans">
                   {simpleDateStr}
                 </div>
               </button>
@@ -1902,7 +1930,7 @@ export const Desktop: React.FC = () => {
       </div>
 
       {/* Floating Action Button (FAB) for AI Copilot (designed like reference photo) */}
-      <div className={`absolute bottom-6 right-6 z-[9500] pointer-events-auto select-none transition-all duration-300 ${
+      <div className={`absolute bottom-16 sm:bottom-6 right-3 sm:right-6 z-[9500] pointer-events-auto select-none transition-all duration-300 ${
         isCopilotSidebarOpen ? 'opacity-0 pointer-events-none scale-75' : 'opacity-100'
       }`}>
         <button
@@ -1916,7 +1944,7 @@ export const Desktop: React.FC = () => {
             setIsNebulaDropdownOpen(false);
             setIsCalendarOpen(false);
           }}
-          className={`group flex items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 ease-out cursor-pointer ${
+          className={`group flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl transition-all duration-300 ease-out cursor-pointer ${
             isCopilotSidebarOpen 
               ? 'bg-[#9333ea] border border-[#a855f7]/50 rotate-90 scale-95 shadow-[0_0_20px_rgba(147,51,234,0.55)] hover:bg-[#a855f7]' 
               : 'rainbow-glow-border rainbow-pulsing-shadow bg-slate-950/95 hover:scale-[1.10] active:scale-90 text-white'
@@ -1924,9 +1952,9 @@ export const Desktop: React.FC = () => {
           title="Toggle Lumina AI assistant"
         >
           {isCopilotSidebarOpen ? (
-            <Icons.X className="w-5 h-5 text-white" />
+            <Icons.X className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           ) : (
-            renderCustomAppIcon('copilot', "w-7.5 h-7.5")
+            renderCustomAppIcon('copilot', "w-6 h-6 sm:w-7.5 sm:h-7.5")
           )}
         </button>
       </div>

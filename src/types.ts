@@ -17,6 +17,7 @@ export interface OSWindow {
   isOpen: boolean;
   isMinimized: boolean;
   isMaximized: boolean;
+  snapState?: 'left' | 'right' | 'top' | 'none';
   zIndex: number;
   x: number;
   y: number;

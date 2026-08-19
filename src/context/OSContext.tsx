@@ -23,6 +23,9 @@ interface OSContextType {
   closeWindow: (id: string) => void;
   minimizeWindow: (id: string) => void;
   maximizeWindow: (id: string) => void;
+  snapWindow: (id: string, snapType: 'left' | 'right' | 'top' | 'none') => void;
+  snapPreview: { active: boolean; snapType: 'left' | 'right' | 'top' | 'none'; x: number; y: number; width: number; height: number } | null;
+  setSnapPreview: (preview: { active: boolean; snapType: 'left' | 'right' | 'top' | 'none'; x: number; y: number; width: number; height: number } | null) => void;
   focusWindow: (id: string) => void;
   updateWindowPosition: (id: string, x: number, y: number) => void;
   updateWindowSize: (id: string, width: number, height: number) => void;
@@ -200,6 +203,7 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   // Windows management
   const [windows, setWindows] = useState<OSWindow[]>([]);
   const [activeWindowId, setActiveWindowId] = useState<string | null>(null);
+  const [snapPreview, setSnapPreview] = useState<{ active: boolean; snapType: 'left' | 'right' | 'top' | 'none'; x: number; y: number; width: number; height: number } | null>(null);
 
   // Miscellaneous OS State
   const [notifications, setNotifications] = useState<NotificationToast[]>([]);
@@ -582,12 +586,17 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     const meta = getAppMeta(appId);
     const id = appId + '_' + Date.now().toString().substr(-6);
 
-    // Initial positioning center screens offset slightly
+    // Initial positioning center screens offset slightly based on device viewport
     const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
     const screenHeight = typeof window !== 'undefined' ? window.innerHeight : 768;
-    const offset = (windows.length % 6) * 25;
-    const leftX = Math.max(40, Math.floor((screenWidth - meta.width) / 2) + offset);
-    const topY = Math.max(40, Math.floor((screenHeight - meta.height - 48) / 2) + offset);
+    const isMobile = screenWidth < 640;
+    const isTablet = screenWidth >= 640 && screenWidth < 1024;
+
+    const winWidth = isMobile ? screenWidth : Math.min(meta.width, screenWidth - 24);
+    const winHeight = isMobile ? screenHeight - 48 : Math.min(meta.height, screenHeight - 80);
+    const offset = isMobile ? 0 : (windows.length % 6) * 20;
+    const leftX = isMobile ? 0 : Math.max(12, Math.floor((screenWidth - winWidth) / 2) + offset);
+    const topY = isMobile ? 0 : Math.max(12, Math.floor((screenHeight - winHeight - 48) / 2) + offset);
 
     const newWindow: OSWindow = {
       id,
@@ -596,14 +605,15 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       appId,
       isOpen: true,
       isMinimized: false,
-      isMaximized: false,
+      isMaximized: isMobile,
+      snapState: 'none',
       zIndex: nextZIndex,
       x: leftX,
       y: topY,
-      width: meta.width,
-      height: meta.height,
-      minWidth: appId === 'calc' ? 280 : 250,
-      minHeight: appId === 'calc' ? 380 : 250,
+      width: winWidth,
+      height: winHeight,
+      minWidth: appId === 'calc' ? 260 : 220,
+      minHeight: appId === 'calc' ? 340 : 220,
       args
     };
 
@@ -649,6 +659,7 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
           return {
             ...w,
             isMaximized: true,
+            snapState: 'top',
             prevX: w.x,
             prevY: w.y,
             prevWidth: w.width,
@@ -662,10 +673,88 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
           return {
             ...w,
             isMaximized: false,
+            snapState: 'none',
             x: w.prevX ?? w.x,
             y: w.prevY ?? w.y,
             width: w.prevWidth ?? w.width,
             height: w.prevHeight ?? w.height
+          };
+        }
+      }
+      return w;
+    }));
+    focusWindow(id);
+  };
+
+  const snapWindow = (id: string, snapType: 'left' | 'right' | 'top' | 'none') => {
+    const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
+    const screenHeight = typeof window !== 'undefined' ? window.innerHeight : 768;
+    const taskbarHeight = 48;
+    const usableHeight = screenHeight - taskbarHeight;
+
+    setWindows(prev => prev.map(w => {
+      if (w.id === id) {
+        // If window is currently un-snapped & un-maximized, preserve its standard geometry
+        const isCurrentlySnappedOrMax = (w.snapState && w.snapState !== 'none') || w.isMaximized;
+        const prevX = isCurrentlySnappedOrMax ? (w.prevX ?? w.x) : w.x;
+        const prevY = isCurrentlySnappedOrMax ? (w.prevY ?? w.y) : w.y;
+        const prevWidth = isCurrentlySnappedOrMax ? (w.prevWidth ?? w.width) : w.width;
+        const prevHeight = isCurrentlySnappedOrMax ? (w.prevHeight ?? w.height) : w.height;
+
+        if (snapType === 'left') {
+          const halfWidth = Math.floor(screenWidth / 2);
+          return {
+            ...w,
+            snapState: 'left',
+            isMaximized: false,
+            prevX,
+            prevY,
+            prevWidth,
+            prevHeight,
+            x: 0,
+            y: 0,
+            width: halfWidth,
+            height: usableHeight
+          };
+        } else if (snapType === 'right') {
+          const halfWidth = Math.ceil(screenWidth / 2);
+          return {
+            ...w,
+            snapState: 'right',
+            isMaximized: false,
+            prevX,
+            prevY,
+            prevWidth,
+            prevHeight,
+            x: Math.floor(screenWidth / 2),
+            y: 0,
+            width: halfWidth,
+            height: usableHeight
+          };
+        } else if (snapType === 'top') {
+          return {
+            ...w,
+            snapState: 'top',
+            isMaximized: true,
+            prevX,
+            prevY,
+            prevWidth,
+            prevHeight,
+            x: 0,
+            y: 0,
+            width: screenWidth,
+            height: usableHeight
+          };
+        } else {
+          // snapType === 'none' -> Restore pre-snap geometry
+          return {
+            ...w,
+            snapState: 'none',
+            isMaximized: false,
+            x: prevX,
+            y: prevY,
+            width: prevWidth,
+            height: prevHeight
           };
         }
       }
@@ -884,6 +973,9 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       closeWindow,
       minimizeWindow,
       maximizeWindow,
+      snapWindow,
+      snapPreview,
+      setSnapPreview,
       focusWindow,
       updateWindowPosition,
       updateWindowSize,
