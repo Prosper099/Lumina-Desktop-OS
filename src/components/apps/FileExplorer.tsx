@@ -41,6 +41,8 @@ import {
   getVideoUrlForFile, 
   getRecordingResult, 
   downloadRecordingBlob, 
+  downloadVideoFile,
+  dataUrlToBlob,
   formatRecordingDuration 
 } from '../../utils/screenRecorder';
 
@@ -371,19 +373,39 @@ export const FileExplorer: React.FC = () => {
     if (!selectedNode || selectedNode.type === 'directory') return;
 
     if (isVideoFile(selectedNode)) {
-      const recMeta = getRecordingResult(selectedNode.name);
-      if (recMeta && recMeta.blob) {
-        downloadRecordingBlob(recMeta.blob, selectedNode.name);
+      const ok = downloadVideoFile(selectedNode.name, selectedNode.content);
+      if (ok) {
         addNotification('Download Ready', `Exporting video recording "${selectedNode.name}"`, 'success');
         return;
       }
     }
 
     const element = document.createElement('a');
-    if (selectedNode.content?.startsWith('data:') || selectedNode.content?.startsWith('blob:')) {
+    if (selectedNode.content?.startsWith('data:')) {
+      try {
+        const blob = dataUrlToBlob(selectedNode.content);
+        const url = URL.createObjectURL(blob);
+        element.href = url;
+        element.download = selectedNode.name;
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+        setTimeout(() => {
+          try { URL.revokeObjectURL(url); } catch (_) {}
+        }, 500);
+        addNotification('Download Ready', `File "${selectedNode.name}" exported successfully.`, 'success');
+        return;
+      } catch (_) {
+        element.href = selectedNode.content;
+      }
+    } else if (selectedNode.content?.startsWith('blob:')) {
       element.href = selectedNode.content;
     } else {
-      const file = new Blob([selectedNode.content || ''], { type: 'text/plain' });
+      if (isVideoFile(selectedNode)) {
+        addNotification('Video Export Notice', 'No binary video data found in record. Please record a new clip.', 'warning');
+        return;
+      }
+      const file = new Blob([selectedNode.content || ''], { type: 'text/plain;charset=utf-8' });
       element.href = URL.createObjectURL(file);
     }
     element.download = selectedNode.name;
@@ -1271,21 +1293,17 @@ Please process the user's task and compile the actions needed (e.g. creating fil
                 {previewVideo.url && (
                   <button
                     onClick={() => {
-                      const rec = getRecordingResult(previewVideo.name);
-                      if (rec && rec.blob) {
-                        downloadRecordingBlob(rec.blob, previewVideo.name);
+                      const ok = downloadVideoFile(previewVideo.name, previewVideo.content || previewVideo.url);
+                      if (ok) {
+                        addNotification('Download Started', `Downloading video "${previewVideo.name}"`, 'info');
                       } else {
-                        const a = document.createElement('a');
-                        a.href = previewVideo.url;
-                        a.download = previewVideo.name;
-                        a.click();
+                        addNotification('Download Notice', 'Failed to retrieve binary video data.', 'warning');
                       }
-                      addNotification('Download Started', `Downloading ${previewVideo.name}`, 'info');
                     }}
                     className="px-3 py-1.5 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-teal-600/20 font-mono"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    Download
+                    Download Video
                   </button>
                 )}
                 <button

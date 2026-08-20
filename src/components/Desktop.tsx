@@ -583,7 +583,7 @@ export const Desktop: React.FC = () => {
             createDirectory('/Videos');
             createFile(
               `/Videos/${result.filename}`,
-              `[Lumina OS Screen Recording File]\nName: ${result.filename}\nDuration: ${formatRecordingDuration(result.durationSeconds)}\nRecorded At: ${result.timestamp}\nStatus: Saved to Video Library\nURL: ${result.url}`
+              result.dataUrl || result.url
             );
           } catch (_) {}
           addNotification('Screen Recording Saved', `Recorded ${formatRecordingDuration(result.durationSeconds)} of desktop activity. Ready to preview or download.`, 'success');
@@ -609,7 +609,7 @@ export const Desktop: React.FC = () => {
                 createDirectory('/Videos');
                 createFile(
                   `/Videos/${autoResult.filename}`,
-                  `[Lumina OS Screen Recording File]\nName: ${autoResult.filename}\nDuration: ${formatRecordingDuration(autoResult.durationSeconds)}\nRecorded At: ${autoResult.timestamp}\nStatus: Saved to Video Library\nURL: ${autoResult.url}`
+                  autoResult.dataUrl || autoResult.url
                 );
               } catch (_) {}
               addNotification('Screen Recording Complete', `Recording saved (${formatRecordingDuration(autoResult.durationSeconds)}).`, 'success');
