@@ -32,9 +32,17 @@ import {
   Scissors,
   RefreshCw,
   Plus,
-  Compass
+  Compass,
+  Play,
+  Film
 } from 'lucide-react';
 import { FSNode } from '../../types';
+import { 
+  getVideoUrlForFile, 
+  getRecordingResult, 
+  downloadRecordingBlob, 
+  formatRecordingDuration 
+} from '../../utils/screenRecorder';
 
 export const FileExplorer: React.FC = () => {
   const {
@@ -56,6 +64,13 @@ export const FileExplorer: React.FC = () => {
   const [addingType, setAddingType] = useState<'folder' | 'file' | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewVideo, setPreviewVideo] = useState<{
+    name: string;
+    url: string;
+    duration?: number;
+    timestamp?: string;
+    content?: string;
+  } | null>(null);
   
   // Custom Premium Features States
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -121,6 +136,24 @@ export const FileExplorer: React.FC = () => {
     setSelectedPath(null);
   };
 
+  // Helper to determine if a node is a video or screen recording
+  const isVideoFile = (node: FSNode) => {
+    if (node.type === 'directory') return false;
+    if (node.name.match(/\.(webm|mp4|mov|mkv|avi|ogv)$/i)) return true;
+    if (node.content && (
+      node.content.startsWith('data:video/') || 
+      node.content.startsWith('blob:') || 
+      node.content.includes('Lumina OS Screen Recording File') ||
+      node.content.includes('URL: blob:')
+    )) return true;
+    if (node.path.startsWith('/Videos/')) return true;
+    return !!getRecordingResult(node.name);
+  };
+
+  const resolveVideoUrl = (node: FSNode): string | null => {
+    return getVideoUrlForFile(node.name, node.content);
+  };
+
   // Directory traversal vs app launch
   const handleNodeDoubleClick = (node: FSNode) => {
     if (node.type === 'directory') {
@@ -132,7 +165,17 @@ export const FileExplorer: React.FC = () => {
   };
 
   const openFile = (node: FSNode) => {
-    if (node.name.endsWith('.png') || (node.content && node.content.startsWith('data:image'))) {
+    if (isVideoFile(node)) {
+      const videoUrl = resolveVideoUrl(node) || '';
+      const recMeta = getRecordingResult(node.name);
+      setPreviewVideo({
+        name: node.name,
+        url: videoUrl,
+        duration: recMeta?.durationSeconds,
+        timestamp: recMeta?.timestamp,
+        content: node.content
+      });
+    } else if (node.name.match(/\.(png|jpg|jpeg|gif|webp|svg)$/i) || (node.content && node.content.startsWith('data:image'))) {
       setPreviewImage(node.content || null);
     } else {
       openWindow('notepad', { path: node.path, content: node.content });
@@ -286,7 +329,7 @@ export const FileExplorer: React.FC = () => {
   const processNativeFiles = (files: FileList) => {
     Array.from(files).forEach(file => {
       const reader = new FileReader();
-      const isImage = file.type.startsWith('image/');
+      const isMedia = file.type.startsWith('image/') || file.type.startsWith('video/') || file.type.startsWith('audio/');
 
       reader.onload = (e) => {
         const fileContent = e.target?.result as string;
@@ -298,7 +341,7 @@ export const FileExplorer: React.FC = () => {
         addNotification('System Import', `Uploaded "${file.name}" to simulated drive successfully.`, 'success');
       };
 
-      if (isImage) {
+      if (isMedia) {
         reader.readAsDataURL(file);
       } else {
         reader.readAsText(file);
@@ -327,8 +370,17 @@ export const FileExplorer: React.FC = () => {
   const handleDownloadSelected = () => {
     if (!selectedNode || selectedNode.type === 'directory') return;
 
+    if (isVideoFile(selectedNode)) {
+      const recMeta = getRecordingResult(selectedNode.name);
+      if (recMeta && recMeta.blob) {
+        downloadRecordingBlob(recMeta.blob, selectedNode.name);
+        addNotification('Download Ready', `Exporting video recording "${selectedNode.name}"`, 'success');
+        return;
+      }
+    }
+
     const element = document.createElement('a');
-    if (selectedNode.content?.startsWith('data:')) {
+    if (selectedNode.content?.startsWith('data:') || selectedNode.content?.startsWith('blob:')) {
       element.href = selectedNode.content;
     } else {
       const file = new Blob([selectedNode.content || ''], { type: 'text/plain' });
@@ -793,6 +845,14 @@ Please process the user's task and compile the actions needed (e.g. creating fil
                         <div className="w-12 h-12 rounded border border-white/10 overflow-hidden bg-slate-900 flex items-center justify-center p-0.5 group-hover:scale-105 transition shadow">
                           <img src={node.content} alt={node.name} className="w-full h-full object-cover rounded" referrerPolicy="no-referrer" />
                         </div>
+                      ) : isVideoFile(node) ? (
+                        <div className="w-12 h-12 rounded-xl border border-teal-500/30 bg-gradient-to-br from-teal-950/80 to-slate-900 flex items-center justify-center p-0.5 group-hover:scale-105 transition shadow relative overflow-hidden">
+                          <Video className="w-6 h-6 text-teal-400" />
+                          <div className="absolute inset-0 bg-teal-500/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                            <Play className="w-4 h-4 text-white fill-white" />
+                          </div>
+                          <span className="absolute bottom-0.5 right-1 text-[7px] font-mono text-teal-300 font-bold">REC</span>
+                        </div>
                       ) : node.type === 'directory' ? (
                         <Folder className="w-12 h-12 text-yellow-500 fill-yellow-600/10 group-hover:scale-105 transition stroke-[1.6]" />
                       ) : (
@@ -841,6 +901,10 @@ Please process the user's task and compile the actions needed (e.g. creating fil
                               <div className="w-5 h-5 rounded overflow-hidden bg-slate-950 shrink-0">
                                 <img src={node.content} alt={node.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                               </div>
+                            ) : isVideoFile(node) ? (
+                              <div className="w-5 h-5 rounded bg-teal-950/80 border border-teal-500/40 flex items-center justify-center shrink-0">
+                                <Video className="w-3.5 h-3.5 text-teal-400" />
+                              </div>
                             ) : node.type === 'directory' ? (
                               <Folder className="w-4 h-4 text-yellow-500 shrink-0" />
                             ) : (
@@ -850,7 +914,7 @@ Please process the user's task and compile the actions needed (e.g. creating fil
                           </td>
                           <td className="py-2 px-4 text-slate-400 font-mono">{formatDate(node.updatedAt)}</td>
                           <td className="py-2 px-4 text-slate-500 font-mono uppercase">
-                            {node.type === 'directory' ? 'File Folder' : node.name.split('.').pop() + ' file'}
+                            {node.type === 'directory' ? 'File Folder' : isVideoFile(node) ? 'Screen Recording Video' : node.name.split('.').pop() + ' file'}
                           </td>
                           <td className="py-2 px-4 text-slate-400 text-right font-mono font-medium">
                             {node.type === 'directory' ? '--' : formatSize(node.size || node.content?.length)}
@@ -886,6 +950,19 @@ Please process the user's task and compile the actions needed (e.g. creating fil
                     <div className="w-20 h-20 rounded border border-white/10 overflow-hidden bg-slate-950 shadow-lg p-0.5">
                       <img src={selectedNode.content} alt={selectedNode.name} className="w-full h-full object-cover rounded" referrerPolicy="no-referrer" />
                     </div>
+                  ) : isVideoFile(selectedNode) ? (
+                    <div className="w-full px-2 flex flex-col items-center gap-2">
+                      <div className="w-16 h-16 rounded-2xl bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-teal-400 shadow-lg shadow-teal-500/10">
+                        <Video className="w-8 h-8" />
+                      </div>
+                      <button
+                        onClick={() => openFile(selectedNode)}
+                        className="w-full py-1.5 px-3 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-md shadow-teal-600/20"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-white" />
+                        Play Video
+                      </button>
+                    </div>
                   ) : selectedNode.type === 'directory' ? (
                     <Folder className="w-16 h-16 text-yellow-500 fill-yellow-600/5 stroke-[1.25]" />
                   ) : (
@@ -893,7 +970,7 @@ Please process the user's task and compile the actions needed (e.g. creating fil
                   )}
                   <span className="text-xs font-bold text-white text-center px-2 mt-3 truncate w-full select-text">{selectedNode.name}</span>
                   <span className="text-[9px] font-mono text-slate-500 mt-1 uppercase">
-                    {selectedNode.type === 'directory' ? 'Simulated Folder' : 'Plain-Text Doc'}
+                    {selectedNode.type === 'directory' ? 'Simulated Folder' : isVideoFile(selectedNode) ? 'Screen Recording (WebM)' : 'Plain-Text Doc'}
                   </span>
                 </div>
 
@@ -993,7 +1070,13 @@ Please process the user's task and compile the actions needed (e.g. creating fil
                   }}
                   className="w-full hover:bg-slate-800/85 hover:text-white text-left px-2.5 py-1.5 rounded-lg transition flex items-center gap-2 cursor-pointer font-semibold"
                 >
-                  <Eye className="w-3.5 h-3.5 text-blue-400" /> Open
+                  {(() => {
+                    const targetNode = fileSystem.find(n => n.path === contextMenu.targetPath);
+                    if (targetNode && isVideoFile(targetNode)) {
+                      return <><Play className="w-3.5 h-3.5 text-teal-400 fill-teal-400" /> Play Video</>;
+                    }
+                    return <><Eye className="w-3.5 h-3.5 text-blue-400" /> Open</>;
+                  })()}
                 </button>
                 <div className="h-px bg-slate-800 my-1" />
                 <button 
@@ -1129,6 +1212,89 @@ Please process the user's task and compile the actions needed (e.g. creating fil
               >
                 Close Viewer
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Video Player Overlay Modal */}
+      {previewVideo && (
+        <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center p-4 z-50 animate-fade-in backdrop-blur-md">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-2xl p-4.5 w-full max-w-xl shadow-2xl relative text-slate-200 select-none font-sans">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-teal-500/20 border border-teal-500/30 flex items-center justify-center text-teal-400">
+                  <Video className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold font-mono text-white truncate max-w-[280px]">
+                    {previewVideo.name}
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-mono">
+                    {previewVideo.duration ? `Duration: ${formatRecordingDuration(previewVideo.duration)}` : 'Screen Recording'} • Saved to Virtual Disk
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPreviewVideo(null)}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="bg-black rounded-xl overflow-hidden border border-white/10 mb-3 flex items-center justify-center min-h-[220px] max-h-[360px]">
+              {previewVideo.url ? (
+                <video
+                  src={previewVideo.url}
+                  controls
+                  autoPlay
+                  playsInline
+                  className="w-full max-h-[350px] object-contain rounded-xl"
+                />
+              ) : (
+                <div className="p-8 text-center text-slate-400 flex flex-col items-center gap-3 font-mono">
+                  <Video className="w-12 h-12 text-teal-400/60" />
+                  <div>
+                    <div className="text-xs font-bold text-slate-300">Screen Recording Record</div>
+                    <div className="text-[10px] text-slate-500 mt-1">Recorded video stream captured in session.</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/5 font-mono text-[10px]">
+              <div className="text-slate-400 truncate max-w-[240px]">
+                {previewVideo.timestamp ? `Recorded: ${previewVideo.timestamp}` : `Location: C:/Videos/${previewVideo.name}`}
+              </div>
+              <div className="flex items-center gap-2">
+                {previewVideo.url && (
+                  <button
+                    onClick={() => {
+                      const rec = getRecordingResult(previewVideo.name);
+                      if (rec && rec.blob) {
+                        downloadRecordingBlob(rec.blob, previewVideo.name);
+                      } else {
+                        const a = document.createElement('a');
+                        a.href = previewVideo.url;
+                        a.download = previewVideo.name;
+                        a.click();
+                      }
+                      addNotification('Download Started', `Downloading ${previewVideo.name}`, 'info');
+                    }}
+                    className="px-3 py-1.5 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-teal-600/20 font-mono"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Download
+                  </button>
+                )}
+                <button
+                  onClick={() => setPreviewVideo(null)}
+                  className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

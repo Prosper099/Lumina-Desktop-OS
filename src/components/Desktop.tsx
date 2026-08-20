@@ -14,6 +14,14 @@ import { CopilotApp } from './apps/CopilotApp';
 import { VoiceApp } from './apps/VoiceApp';
 import { SystemMonitor } from './apps/SystemMonitor';
 import { MapsApp } from './apps/MapsApp';
+import { ScreenVisionHUD } from './ScreenVisionHUD';
+import { 
+  startScreenRecording, 
+  stopScreenRecording, 
+  downloadRecordingBlob, 
+  formatRecordingDuration,
+  RecordingResult 
+} from '../utils/screenRecorder';
 
 import * as Icons from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -281,7 +289,7 @@ const DESKTOP_LAUNCHERS: DesktopIcon[] = [
   { id: 'calc', label: 'Calculator', iconName: 'Calculator', appId: 'calc', colorClass: 'text-slate-300' },
   { id: 'settings', label: 'Settings', iconName: 'Settings', appId: 'settings', colorClass: 'text-purple-400' },
   { id: 'terminal', label: 'Terminal', iconName: 'Terminal', appId: 'terminal', colorClass: 'text-emerald-400 font-mono' },
-  { id: 'voice', label: 'Gemini Live', iconName: 'Mic', appId: 'voice', colorClass: 'text-purple-400 animate-pulse' },
+  { id: 'voice', label: 'Lumina Voice', iconName: 'Mic', appId: 'voice', colorClass: 'text-purple-400 animate-pulse' },
   { id: 'sysmon', label: 'System Monitor', iconName: 'Activity', appId: 'sysmon', colorClass: 'text-cyan-400 font-medium' },
   { id: 'maps', label: 'Lumina Maps', iconName: 'maps', appId: 'maps', colorClass: 'text-amber-400 font-semibold' },
 ];
@@ -377,7 +385,12 @@ export const Desktop: React.FC = () => {
     chatHistory,
     sendAICommand,
     isAIPending,
-    addNotification
+    addNotification,
+    createFile,
+    createDirectory,
+    setTheme,
+    isScreenVisionActive,
+    setIsScreenVisionActive
   } = useOS();
 
   const [timeStr, setTimeStr] = useState('');
@@ -549,6 +562,71 @@ export const Desktop: React.FC = () => {
   const [airplaneOn, setAirplaneOn] = useState(false);
   const [volume, setVolume] = useState(75);
   const [brightness, setBrightness] = useState(85);
+
+  // Screen recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [lastRecording, setLastRecording] = useState<RecordingResult | null>(null);
+  const [showRecordingModal, setShowRecordingModal] = useState(false);
+
+  const handleToggleScreenRecording = async () => {
+    if (isRecording) {
+      // Stop recording
+      try {
+        const result = await stopScreenRecording();
+        setIsRecording(false);
+        setRecordingSeconds(0);
+        if (result) {
+          setLastRecording(result);
+          setShowRecordingModal(true);
+          try {
+            createDirectory('/Videos');
+            createFile(
+              `/Videos/${result.filename}`,
+              `[Lumina OS Screen Recording File]\nName: ${result.filename}\nDuration: ${formatRecordingDuration(result.durationSeconds)}\nRecorded At: ${result.timestamp}\nStatus: Saved to Video Library\nURL: ${result.url}`
+            );
+          } catch (_) {}
+          addNotification('Screen Recording Saved', `Recorded ${formatRecordingDuration(result.durationSeconds)} of desktop activity. Ready to preview or download.`, 'success');
+        }
+      } catch (err) {
+        console.error('Stop recording error:', err);
+        setIsRecording(false);
+        setRecordingSeconds(0);
+      }
+    } else {
+      // Start recording
+      addNotification('Screen Recording Initializing', 'Select screen or workspace to begin recording.', 'info');
+      try {
+        const startRes = await startScreenRecording(
+          (sec) => setRecordingSeconds(sec),
+          (autoResult) => {
+            setIsRecording(false);
+            setRecordingSeconds(0);
+            if (autoResult) {
+              setLastRecording(autoResult);
+              setShowRecordingModal(true);
+              try {
+                createDirectory('/Videos');
+                createFile(
+                  `/Videos/${autoResult.filename}`,
+                  `[Lumina OS Screen Recording File]\nName: ${autoResult.filename}\nDuration: ${formatRecordingDuration(autoResult.durationSeconds)}\nRecorded At: ${autoResult.timestamp}\nStatus: Saved to Video Library\nURL: ${autoResult.url}`
+                );
+              } catch (_) {}
+              addNotification('Screen Recording Complete', `Recording saved (${formatRecordingDuration(autoResult.durationSeconds)}).`, 'success');
+            }
+          }
+        );
+        if (startRes.success) {
+          setIsRecording(true);
+          setRecordingSeconds(0);
+          addNotification('Screen Recording Active', 'Live desktop screen recording has started.', 'success');
+        }
+      } catch (err: any) {
+        console.error('Start recording error:', err);
+        addNotification('Recording Notice', err?.message || 'Screen recording could not be started.', 'warning');
+      }
+    }
+  };
 
   // Update virtual clock every second
   useEffect(() => {
@@ -1120,6 +1198,7 @@ export const Desktop: React.FC = () => {
 
       {/* 4. MAIN DESKTOP WORKING GRID STAGE (LEFT LAUNCH SHORTCUTS VERTICALLY ARRANGED) */}
       <div
+        id="lumina-desktop-workstage"
         className="flex-1 relative p-3 sm:p-6 pointer-events-auto select-none overflow-hidden"
         onClick={() => {
           setSelectedIconId(null);
@@ -1181,7 +1260,7 @@ export const Desktop: React.FC = () => {
           <div className="flex flex-row sm:flex-col flex-wrap sm:flex-nowrap gap-2.5 sm:gap-4">
             {[
               { id: 'calc', label: 'Calculator', appId: 'calc', shadowGlow: 'hover:shadow-[0_0_16px_rgba(129,140,248,0.3)] hover:border-indigo-500/35' },
-              { id: 'voice', label: 'Gemini Live', appId: 'voice', shadowGlow: 'hover:shadow-[0_0_16px_rgba(168,85,247,0.3)] hover:border-purple-500/35' },
+              { id: 'voice', label: 'Lumina Voice', appId: 'voice', shadowGlow: 'hover:shadow-[0_0_16px_rgba(168,85,247,0.3)] hover:border-purple-500/35' },
               { id: 'maps', label: 'Lumina Maps', appId: 'maps', shadowGlow: 'hover:shadow-[0_0_16px_rgba(245,158,11,0.3)] hover:border-amber-500/35' },
               { id: 'sysmon', label: 'Sys Monitor', appId: 'sysmon', shadowGlow: 'hover:shadow-[0_0_16px_rgba(34,211,238,0.3)] hover:border-cyan-500/35' },
               { id: 'settings', label: 'Settings', appId: 'settings', shadowGlow: 'hover:shadow-[0_0_16px_rgba(168,85,247,0.3)] hover:border-purple-500/35' },
@@ -1455,7 +1534,7 @@ export const Desktop: React.FC = () => {
             <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
               <button
                 onClick={() => setWifiOn(!wifiOn)}
-                className={`flex flex-col items-center justify-center p-3 sm:p-3.5 rounded-xl cursor-pointer transition select-none ${
+                className={`flex flex-col items-center justify-center p-3 rounded-xl cursor-pointer transition select-none ${
                   wifiOn 
                     ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,0.3)]' 
                     : isLightTheme 
@@ -1468,7 +1547,7 @@ export const Desktop: React.FC = () => {
               </button>
               <button
                 onClick={() => setBluetoothOn(!bluetoothOn)}
-                className={`flex flex-col items-center justify-center p-3 sm:p-3.5 rounded-xl cursor-pointer transition select-none ${
+                className={`flex flex-col items-center justify-center p-3 rounded-xl cursor-pointer transition select-none ${
                   bluetoothOn 
                     ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,0.3)]' 
                     : isLightTheme 
@@ -1479,9 +1558,40 @@ export const Desktop: React.FC = () => {
                 <Icons.Bluetooth className="w-4 h-4 mb-1.5" />
                 <span className="text-[10px] font-bold">Bluetooth</span>
               </button>
+
+              {/* Screen Recording Toggle in Quick Settings */}
+              <button
+                onClick={handleToggleScreenRecording}
+                className={`flex flex-col items-center justify-center p-3 rounded-xl cursor-pointer transition select-none relative overflow-hidden ${
+                  isRecording 
+                    ? 'bg-red-600 text-white shadow-[0_0_14px_rgba(239,68,68,0.6)] border border-red-400/80 animate-pulse' 
+                    : isLightTheme 
+                      ? 'bg-slate-900/10 hover:bg-slate-900/15 text-slate-700 border border-slate-200' 
+                      : 'bg-white/10 hover:bg-white/15 text-slate-300'
+                }`}
+                title={isRecording ? "Stop and save recording" : "Record desktop screen"}
+              >
+                {isRecording ? (
+                  <>
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                      <Icons.Video className="w-4 h-4" />
+                    </div>
+                    <span className="text-[9.5px] font-mono font-bold leading-tight">
+                      {formatRecordingDuration(recordingSeconds)}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Icons.Video className="w-4 h-4 mb-1.5 text-rose-400" />
+                    <span className="text-[10px] font-bold">Record</span>
+                  </>
+                )}
+              </button>
+
               <button
                 onClick={() => setAirplaneOn(!airplaneOn)}
-                className={`flex flex-col items-center justify-center p-3 sm:p-3.5 rounded-xl cursor-pointer transition select-none ${
+                className={`flex flex-col items-center justify-center p-3 rounded-xl cursor-pointer transition select-none ${
                   airplaneOn 
                     ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,0.3)]' 
                     : isLightTheme 
@@ -1492,7 +1602,64 @@ export const Desktop: React.FC = () => {
                 <Icons.Plane className="w-4 h-4 mb-1.5" />
                 <span className="text-[10px] font-bold">Airplane</span>
               </button>
+
+              <button
+                onClick={() => {
+                  setIsScreenVisionActive(!isScreenVisionActive);
+                  if (!isScreenVisionActive) {
+                    addNotification('Screen AI Active', 'Lumina Screen Share AI is now active.', 'success');
+                  }
+                }}
+                className={`flex flex-col items-center justify-center p-3 rounded-xl cursor-pointer transition select-none ${
+                  isScreenVisionActive 
+                    ? 'bg-purple-600 text-white shadow-[0_2px_8px_rgba(147,51,234,0.4)]' 
+                    : isLightTheme 
+                      ? 'bg-slate-900/10 hover:bg-slate-900/15 text-slate-700 border border-slate-200' 
+                      : 'bg-white/10 hover:bg-white/15 text-slate-300'
+                }`}
+                title="Lumina Screen AI & Sharing"
+              >
+                <Icons.ScreenShare className="w-4 h-4 mb-1.5 text-purple-300" />
+                <span className="text-[10px] font-bold">Screen AI</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setTheme(isLightTheme ? 'dark' : 'light');
+                }}
+                className={`flex flex-col items-center justify-center p-3 rounded-xl cursor-pointer transition select-none ${
+                  isLightTheme 
+                    ? 'bg-amber-500/20 text-amber-800 border border-amber-300' 
+                    : 'bg-white/10 hover:bg-white/15 text-slate-300'
+                }`}
+                title="Toggle Theme"
+              >
+                {isLightTheme ? (
+                  <Icons.Sun className="w-4 h-4 mb-1.5 text-amber-500" />
+                ) : (
+                  <Icons.Moon className="w-4 h-4 mb-1.5 text-sky-400" />
+                )}
+                <span className="text-[10px] font-bold">{isLightTheme ? 'Light' : 'Dark'}</span>
+              </button>
             </div>
+
+            {/* Active recording indicator strip if recording */}
+            {isRecording && (
+              <div className="p-2.5 rounded-xl bg-red-500/15 border border-red-500/30 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                  <div className="text-[11px] font-medium">
+                    <span className="font-bold text-red-400">Recording:</span> {formatRecordingDuration(recordingSeconds)}
+                  </div>
+                </div>
+                <button
+                  onClick={handleToggleScreenRecording}
+                  className="px-2.5 py-1 text-[10px] font-bold bg-red-600 hover:bg-red-700 text-white rounded-lg cursor-pointer transition shadow-sm"
+                >
+                  Stop & Save
+                </button>
+              </div>
+            )}
 
             <div className={`space-y-3.5 border-t pt-3.5 ${isLightTheme ? 'border-slate-200' : 'border-white/5'}`}>
               <div className="flex items-center gap-3 select-none">
@@ -1863,6 +2030,19 @@ export const Desktop: React.FC = () => {
                 <Icons.ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
 
+              {/* Active Recording Dock Pill Indicator */}
+              {isRecording && (
+                <button
+                  onClick={handleToggleScreenRecording}
+                  className="flex items-center gap-1.5 px-2.5 sm:px-3 h-8 sm:h-10 shrink-0 rounded-xl sm:rounded-2xl bg-red-600 hover:bg-red-700 text-white font-mono text-[10px] sm:text-xs font-bold shadow-[0_0_12px_rgba(239,68,68,0.8)] animate-pulse cursor-pointer border border-red-400/80 select-none"
+                  title="Click to Stop & Save Screen Recording"
+                >
+                  <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                  <Icons.Video className="w-3.5 h-3.5" />
+                  <span>REC {formatRecordingDuration(recordingSeconds)}</span>
+                </button>
+              )}
+
               {/* Pill with WiFi and Video camera icons */}
               <button
                 onClick={() => {
@@ -1880,7 +2060,7 @@ export const Desktop: React.FC = () => {
                 title="Quick Control Sliders"
               >
                 <Icons.Wifi className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <Icons.Video className="w-3.5 h-3.5 sm:w-4 sm:h-4 hidden sm:block" />
+                <Icons.Video className={`w-3.5 h-3.5 sm:w-4 sm:h-4 hidden sm:block ${isRecording ? 'text-red-400 animate-pulse' : ''}`} />
               </button>
 
               {/* Pill with Bell icon */}
@@ -2113,6 +2293,92 @@ export const Desktop: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Screen Recording Preview & Download Modal */}
+      <AnimatePresence>
+        {showRecordingModal && lastRecording && (
+          <div className="fixed inset-0 z-[99999] bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className={`w-full max-w-lg rounded-2xl p-5 shadow-2xl border select-none ${
+                isLightTheme
+                  ? 'acrylic-light text-slate-900 border-slate-300'
+                  : 'acrylic text-white border-white/15'
+              }`}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400">
+                    <Icons.Video className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm">Screen Recording Ready</h3>
+                    <p className="text-[11px] text-slate-400">
+                      Duration: {formatRecordingDuration(lastRecording.durationSeconds)} • {lastRecording.timestamp}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowRecordingModal(false)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                >
+                  <Icons.X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Video Player */}
+              <div className="rounded-xl overflow-hidden bg-black/60 border border-white/10 mb-4 flex items-center justify-center">
+                <video
+                  src={lastRecording.url}
+                  controls
+                  autoPlay
+                  className="w-full max-h-[260px] object-contain rounded-xl"
+                />
+              </div>
+
+              {/* File Info */}
+              <div className="p-3 rounded-xl bg-white/5 border border-white/5 mb-4 text-xs font-mono flex items-center justify-between text-slate-300">
+                <span className="truncate max-w-[280px]">{lastRecording.filename}</span>
+                <span className="text-[11px] text-emerald-400 font-sans font-medium">Saved to /Videos</span>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2.5">
+                <button
+                  onClick={() => {
+                    setShowRecordingModal(false);
+                    openWindow('explorer');
+                  }}
+                  className={`px-3.5 py-2 text-xs font-medium rounded-xl transition cursor-pointer flex items-center gap-1.5 ${
+                    isLightTheme
+                      ? 'bg-slate-200 hover:bg-slate-300 text-slate-800'
+                      : 'bg-white/10 hover:bg-white/15 text-slate-200'
+                  }`}
+                >
+                  <Icons.FolderClosed className="w-3.5 h-3.5" />
+                  View in Explorer
+                </button>
+                <button
+                  onClick={() => {
+                    downloadRecordingBlob(lastRecording.blob, lastRecording.filename);
+                    addNotification('Download Started', `Downloading ${lastRecording.filename}`, 'info');
+                  }}
+                  className="px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition cursor-pointer flex items-center gap-1.5 shadow-lg shadow-blue-600/30"
+                >
+                  <Icons.Download className="w-3.5 h-3.5" />
+                  Download Video
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Lumina AI Screen Vision Floating HUD & Assistant */}
+      <ScreenVisionHUD />
     </div>
   );
 };

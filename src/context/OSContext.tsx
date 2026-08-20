@@ -47,6 +47,10 @@ interface OSContextType {
   isFirebaseActive: boolean;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
+  isScreenVisionActive: boolean;
+  setIsScreenVisionActive: (active: boolean) => void;
+  screenVisionThumbnail: string | null;
+  setScreenVisionThumbnail: (thumb: string | null) => void;
 }
 
 const OSContext = createContext<OSContextType | undefined>(undefined);
@@ -244,6 +248,8 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   // Firebase auth & cloud synchronization states
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isFirebaseActive, setIsFirebaseActive] = useState<boolean>(false);
+  const [isScreenVisionActive, setIsScreenVisionActive] = useState<boolean>(false);
+  const [screenVisionThumbnail, setScreenVisionThumbnail] = useState<string | null>(null);
 
   // Firestore specific error details builder conforming to AI Studio system expectations
   const handleFirestoreError = (error: unknown, operationType: string, path: string | null, authUser: any) => {
@@ -550,7 +556,7 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       case 'settings': return { title: 'Settings', iconName: 'Settings', width: 860, height: 580 };
       case 'terminal': return { title: 'Terminal', iconName: 'Terminal', width: 820, height: 520 };
       case 'copilot': return { title: 'Lumina AI', iconName: 'Sparkles', width: 400, height: 620 };
-      case 'voice': return { title: 'Gemini Live Voice Link', iconName: 'Mic', width: 560, height: 580 };
+      case 'voice': return { title: 'Lumina Voice Assistant', iconName: 'Mic', width: 560, height: 580 };
       case 'sysmon': return { title: 'System Monitor', iconName: 'Activity', width: 840, height: 540 };
       case 'maps': return { title: 'Lumina Maps', iconName: 'Compass', width: 920, height: 580 };
       default: return { title: 'Application', iconName: 'Layers', width: 800, height: 520 };
@@ -996,7 +1002,11 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       currentUser,
       isFirebaseActive,
       loginWithGoogle,
-      logout
+      logout,
+      isScreenVisionActive,
+      setIsScreenVisionActive,
+      screenVisionThumbnail,
+      setScreenVisionThumbnail
     }}>
       {children}
     </OSContext.Provider>

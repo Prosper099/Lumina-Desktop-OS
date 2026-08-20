@@ -1,6 +1,6 @@
 {
   "name": "AI Interactive Desktop OS",
   "description": "A Windows-simulated web operating system featuring interactive windows, a fully-functional virtual file system, core apps like Notepad and Paint, and an integrated system-wide Lumina AI.",
-  "requestFramePermissions": ["microphone"],
+  "requestFramePermissions": ["microphone", "display-capture"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

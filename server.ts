@@ -581,19 +581,172 @@ function simulateOfflineCommands(prompt: string, currentPath: string): any[] {
   return actions;
 }
 
+// OS Voice Assistant endpoint with authentic Gemini Neural Audio & Multimodal Screen Vision
+app.post("/api/gemini/voice-chat", async (req, res) => {
+  try {
+    const { prompt, voice = "Zephyr", image, screenContext } = req.body;
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
+      const activeAppDesc = screenContext?.activeApp ? ` with ${screenContext.activeApp}` : '';
+      const fallbackResponses: Record<string, string> = {
+        "hello": "Hello! I am Lumina AI. How can I help you today?",
+        "what time is it": `The current system time is ${new Date().toLocaleTimeString()}.`,
+        "who are you": "I am Lumina AI, your intelligent operating system companion.",
+        "open notepad": "Opening Notepad for you right now.",
+        "open paint": "Launching the Paint canvas app.",
+        "open calculator": "Opening Calculator.",
+      };
+
+      const lower = (prompt || "").toLowerCase();
+      let match = image 
+        ? `I am observing your desktop screen${activeAppDesc}. To unlock real-time Gemini Multimodal Vision analysis and voice guidance, configure your GEMINI_API_KEY in the Secrets panel.`
+        : `I heard you say: "${prompt || 'Hello'}". To unlock real-time Gemini neural voice responses, configure your GEMINI_API_KEY in the Secrets panel.`;
+
+      for (const [k, v] of Object.entries(fallbackResponses)) {
+        if (lower.includes(k)) {
+          match = v;
+          break;
+        }
+      }
+
+      return res.json({ reply: match, audio: null });
+    }
+
+    const ai = getGeminiClient();
+    
+    // Customized system instructions based on whether screen sharing / visual frame is present
+    let systemInstruction = `You are Lumina AI, a friendly, intelligent, proactive visual and voice assistant built directly into Lumina OS.
+You are speaking directly to the user in a voice conversation while they interact with the desktop.
+Keep your answers direct, intelligent, conversational, step-by-step, and concise (1 to 3 short sentences maximum), optimized for natural spoken playback.
+Never output raw markdown formatting, asterisks, or bullet characters that sound awkward when read aloud by speech synthesis.`;
+
+    if (image || screenContext) {
+      systemInstruction += `
+You are actively observing the user's shared desktop screen and open applications (e.g. Paint Studio, Notepad, Calculator, Terminal, File Explorer, Settings, Google Maps).
+The user is speaking to you and asking for guidance or help on what to do next.
+Carefully examine the visual interface in the screenshot:
+- Identify which window is active, what buttons, menus, drawings, calculations, commands, or text are currently visible.
+- Provide clear, actionable, step-by-step advice on what they should do, where to click, what tools to use, or what command to run.
+- If they ask "What should I do?" or "How do I do this?", give specific, practical guidance based on what you see on the screen.`;
+    }
+
+    const parts: any[] = [];
+
+    // Attach multimodal screen image part if provided
+    if (image && typeof image === 'string') {
+      let mimeType = "image/jpeg";
+      let base64Data = image;
+      if (image.startsWith("data:")) {
+        const match = image.match(/^data:(image\/[a-zA-Z0-9\+\-\.]+);base64,(.+)$/);
+        if (match) {
+          mimeType = match[1];
+          base64Data = match[2];
+        }
+      }
+      parts.push({
+        inlineData: {
+          mimeType,
+          data: base64Data,
+        },
+      });
+    }
+
+    // Attach user speech prompt & screen state context
+    let fullPromptText = prompt || (image ? "I am sharing my desktop screen with you. What do you see, and what should I do next?" : "Hello Lumina AI");
+    if (screenContext) {
+      const activeApp = screenContext.activeApp || "Desktop";
+      const openApps = Array.isArray(screenContext.openApps) ? screenContext.openApps.join(", ") : "None";
+      fullPromptText += `\n[Desktop State: Active Window="${activeApp}", Open Applications=[${openApps}]]`;
+    }
+    parts.push({ text: fullPromptText });
+
+    // 1. Generate text response with Gemini 3.7 Flash multimodal
+    const response = await ai.models.generateContent({
+      model: "gemini-3.7-flash",
+      contents: [{ parts }],
+      config: {
+        systemInstruction,
+        temperature: 0.7,
+      },
+    });
+
+    const reply = response?.text?.trim() || "I can see your screen. How can I guide you?";
+
+    // 2. Generate Gemini Neural Voice (TTS)
+    let audioBase64: string | null = null;
+    try {
+      const validVoice = ["Puck", "Charon", "Kore", "Fenrir", "Zephyr"].includes(voice) ? voice : "Zephyr";
+      const ttsResponse = await ai.models.generateContent({
+        model: "gemini-3.1-flash-tts-preview",
+        contents: [{ parts: [{ text: reply }] }],
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: validVoice },
+            },
+          },
+        },
+      });
+
+      audioBase64 = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || null;
+    } catch (ttsErr) {
+      console.warn("Gemini Neural TTS warning (will fallback to browser audio):", ttsErr);
+    }
+
+    res.json({ reply, audio: audioBase64 });
+  } catch (error: any) {
+    console.error("Voice chat API error:", error);
+    res.status(500).json({ error: error.message || "Failed to process voice request." });
+  }
+});
+
+// Dedicated TTS endpoint
+app.post("/api/gemini/tts", async (req, res) => {
+  try {
+    const { text, voice = "Zephyr" } = req.body;
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
+      return res.json({ audio: null });
+    }
+
+    const ai = getGeminiClient();
+    const validVoice = ["Puck", "Charon", "Kore", "Fenrir", "Zephyr"].includes(voice) ? voice : "Zephyr";
+    const response = await ai.models.generateContent({
+      model: "gemini-3.1-flash-tts-preview",
+      contents: [{ parts: [{ text: text || "Hello" }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: validVoice },
+          },
+        },
+      },
+    });
+
+    const audioBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || null;
+    res.json({ audio: audioBase64 });
+  } catch (error: any) {
+    console.error("TTS endpoint error:", error);
+    res.status(500).json({ error: error.message || "Failed to synthesize speech." });
+  }
+});
+
 // Http and WS setup
 const server = http.createServer(app);
 const wss = new WebSocketServer({ noServer: true });
 
 // Handle WebSocket connections for standard Live voice API
-wss.on("connection", async (clientWs) => {
-  console.log("Live Voice connection established");
+wss.on("connection", async (clientWs, req) => {
+  console.log("Live Voice WebSocket connection opened from", req?.url);
   let liveSession: any = null;
 
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
-      clientWs.send(JSON.stringify({ error: "No API Key configured on Server. Voice is in simulation mode." }));
+      clientWs.send(JSON.stringify({ error: "No API Key configured on Server. Voice is in fallback mode." }));
       return;
     }
 
@@ -605,7 +758,7 @@ wss.on("connection", async (clientWs) => {
         speechConfig: {
           voiceConfig: { prebuiltVoiceConfig: { voiceName: "Zephyr" } },
         },
-        systemInstruction: "You are a real-time, low-latency audio response-based assistant for the simulated desktop workspace. Speak clearly, concisely and directly so the user receives short and helpful answers.",
+        systemInstruction: "You are Lumina AI, a fast real-time audio voice assistant for Lumina OS. Speak naturally, concisely, and directly in 1 to 2 sentences.",
       },
       callbacks: {
         onmessage: (message: any) => {
@@ -617,6 +770,15 @@ wss.on("connection", async (clientWs) => {
             clientWs.send(JSON.stringify({ interrupted: true }));
           }
         },
+        onerror: (err: any) => {
+          console.error("Live session callback error:", err);
+          try {
+            clientWs.send(JSON.stringify({ error: err?.message || "Live session error" }));
+          } catch (_) {}
+        },
+        onclose: () => {
+          console.log("Live session closed from Google upstream");
+        }
       },
     });
 
@@ -634,7 +796,6 @@ wss.on("connection", async (clientWs) => {
     });
 
     clientWs.on("close", () => {
-      console.log("Live Voice socket closed, closing Gemini live session");
       if (liveSession) {
         try {
           liveSession.close();
@@ -643,20 +804,26 @@ wss.on("connection", async (clientWs) => {
     });
   } catch (err: any) {
     console.error("Error setting up Gemini Live Audio Link:", err);
-    clientWs.send(JSON.stringify({ error: "Connection error: " + err.message }));
+    try {
+      clientWs.send(JSON.stringify({ error: "Connection error: " + err.message }));
+    } catch (_) {}
   }
 });
 
-// Bridge upgrade requests
+// Bridge upgrade requests with safe pathname parsing
 server.on("upgrade", (request, socket, head) => {
-  const pathname = request.url;
-  if (pathname === "/api/live") {
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      wss.emit("connection", ws, request);
-    });
-  } else {
-    socket.destroy();
+  try {
+    const url = new URL(request.url || "", `http://${request.headers.host || "localhost"}`);
+    if (url.pathname === "/api/live" || url.pathname === "/api/live/" || url.pathname === "/live" || url.pathname === "/live/") {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit("connection", ws, request);
+      });
+      return;
+    }
+  } catch (e) {
+    console.error("WebSocket upgrade parse error:", e);
   }
+  socket.destroy();
 });
 
 // Vite middleware for development
